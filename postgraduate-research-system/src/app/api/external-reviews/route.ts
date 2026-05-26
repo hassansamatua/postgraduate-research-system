@@ -53,11 +53,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { studentId, externalReviewerId, documentId } = await request.json();
+    const { studentId, externalReviewerId, documentId, deadline } = await request.json();
 
     const [result] = await pool.query(
-      'INSERT INTO external_reviews (student_id, external_reviewer_id, document_id) VALUES (?, ?, ?)',
-      [studentId, externalReviewerId, documentId]
+      'INSERT INTO external_reviews (student_id, external_reviewer_id, document_id, deadline) VALUES (?, ?, ?, ?)',
+      [studentId, externalReviewerId, documentId || null, deadline || null]
     ) as any[];
 
     await pool.query(

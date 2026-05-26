@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
 import { getCookie, decodeToken } from '@/lib/utils';
 import { FileText, CheckCircle, Clock, Download } from 'lucide-react';
 
-export default function ExternalReviewerDashboard() {
+function ExternalReviewerDashboardContent() {
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'reviews'>('dashboard');
   const [user, setUser] = useState({ name: '', role: 'external_reviewer' });
   const [stats, setStats] = useState({
     assignedReviews: 0,
@@ -45,6 +48,13 @@ export default function ExternalReviewerDashboard() {
         setLoading(false);
       }
     };
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as 'dashboard' | 'reviews' | null;
+    if (tabParam && ['dashboard', 'reviews'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
     fetchData();
   }, []);
@@ -251,5 +261,13 @@ export default function ExternalReviewerDashboard() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function ExternalReviewerDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-500">Loading...</div>}>
+      <ExternalReviewerDashboardContent />
+    </Suspense>
   );
 }

@@ -1,18 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
 import { getCookie, decodeToken } from '@/lib/utils';
-import { FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { FileText, CheckCircle, Clock, AlertCircle, MessageSquare, Download, ChevronDown, ChevronUp } from 'lucide-react';
 
-export default function FacultyDashboard() {
+function FacultyDashboardContent() {
   const [user, setUser] = useState({ name: '', role: 'faculty', facultyId: 0 });
   const [researchTitles, setResearchTitles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'documents'>('pending');
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [docComments, setDocComments] = useState<any[]>([]);
+  const [expandedDoc, setExpandedDoc] = useState<number | null>(null);
   const [reviewModal, setReviewModal] = useState<{
     id: number; title: string; action: 'approved' | 'rejected' | 'correction_required'; comments: string;
   } | null>(null);
@@ -23,15 +27,32 @@ export default function FacultyDashboard() {
       const payload = decodeToken(token || '');
       if (!payload) return;
       setUser({ name: payload.name, role: payload.role, facultyId: payload.facultyId });
-      const res = await fetch(`/api/research-titles?faculty_id=${payload.facultyId}`);
-      const data = await res.json();
-      if (data.researchTitles) setResearchTitles(data.researchTitles);
+      const [titlesRes, docsRes, commentsRes] = await Promise.all([
+        fetch(`/api/research-titles?faculty_id=${payload.facultyId}`),
+        fetch('/api/documents'),
+        fetch('/api/document-comments'),
+      ]);
+      const [titlesData, docsData, commentsData] = await Promise.all([
+        titlesRes.json(), docsRes.json(), commentsRes.json(),
+      ]);
+      if (titlesData.researchTitles) setResearchTitles(titlesData.researchTitles);
+      if (docsData.documents) setDocuments(docsData.documents);
+      if (commentsData.comments) setDocComments(commentsData.comments);
     } catch (err) {
       console.error('Error:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as 'pending' | 'all' | 'documents' | null;
+    if (tabParam && ['pending', 'all', 'documents'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -104,6 +125,7 @@ export default function FacultyDashboard() {
             {[
               { id: 'pending' as const, label: 'Pending Review', badge: pending.length },
               { id: 'all' as const, label: `All Titles (${researchTitles.length})`, badge: 0 },
+              { id: 'documents' as const, label: `Documents (${documents.length})`, badge: documents.filter(d => d.status === 'correction_required' || d.status === 'rejected').length },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`pb-3 text-sm font-medium border-b-2 ${
@@ -177,6 +199,76 @@ export default function FacultyDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Documents with Supervisor Feedback */}
+        {activeTab === 'documents' && (
+          <Card>
+            <CardHeader><CardTitle>Student Documents &amp; Supervisor Feedback</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {documents.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <FileText className="w-12 h-12 mx-auto mb-3" />
+                  <p>No documents uploaded yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {documents.map(doc => {
+                    const comments = docComments.filter(c => c.document_id === doc.id);
+                    const needsAttention = doc.status === 'correction_required' || doc.status === 'rejected';
+                    const isExpanded = expandedDoc === doc.id;
+                    return (
+                      <div key={doc.id} className={needsAttention ? 'bg-orange-50' : ''}>
+                        <div className="flex items-center justify-between px-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900 truncate">{doc.document_title}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Stage: {doc.stage?.replace(/_/g, ' ')} · v{doc.version_number} · {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                              needsAttention ? 'bg-orange-100 text-orange-700' : doc.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                            }`}>{doc.status?.replace(/_/g, ' ')}</span>
+                            {comments.length > 0 && (
+                              <button
+                                onClick={() => setExpandedDoc(isExpanded ? null : doc.id)}
+                                className={`flex items-center gap-1 text-xs px-2 py-1 rounded border font-medium transition-colors ${
+                                  isExpanded ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-700 border-orange-400 hover:bg-orange-50'
+                                }`}>
+                                <MessageSquare className="w-3 h-3" />
+                                {isExpanded ? 'Hide' : `Comments (${comments.length})`}
+                                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              </button>
+                            )}
+                            <a href={doc.file_path} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1 text-xs text-white px-2 py-1 rounded"
+                              style={{ backgroundColor: '#1B5E20' }}>
+                              <Download className="w-3 h-3" /> View
+                            </a>
+                          </div>
+                        </div>
+                        {isExpanded && comments.length > 0 && (
+                          <div className="px-4 pb-3 space-y-2">
+                            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Supervisor Feedback
+                            </p>
+                            {comments.map((c: any) => (
+                              <div key={c.id} className="bg-white border border-orange-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-semibold text-gray-700">{c.commenter_name}</span>
+                                  <span className="text-xs text-gray-400">{new Date(c.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-relaxed">{c.comment}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -274,5 +366,13 @@ export default function FacultyDashboard() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function FacultyDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-500">Loading...</div>}>
+      <FacultyDashboardContent />
+    </Suspense>
   );
 }

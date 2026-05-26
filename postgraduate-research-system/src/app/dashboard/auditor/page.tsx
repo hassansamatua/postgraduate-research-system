@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
 import { getCookie, decodeToken } from '@/lib/utils';
 import { FileText, Users, AlertTriangle, ShieldCheck, Plus } from 'lucide-react';
 
-export default function AuditorDashboard() {
+function AuditorDashboardContent() {
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'research' | 'workload' | 'compliance'>('research');
   const [user, setUser] = useState({ name: '', role: 'auditor' });
   const [stats, setStats] = useState({
     totalResearch: 0,
@@ -54,6 +57,13 @@ export default function AuditorDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as 'research' | 'workload' | 'compliance' | null;
+    if (tabParam && ['research', 'workload', 'compliance'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -275,5 +285,13 @@ export default function AuditorDashboard() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function AuditorDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-500">Loading...</div>}>
+      <AuditorDashboardContent />
+    </Suspense>
   );
 }

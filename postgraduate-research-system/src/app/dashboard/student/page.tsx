@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard-layout';
 import { getCookie, decodeToken } from '@/lib/utils';
@@ -24,9 +24,10 @@ const STAGE_LABELS: Record<string, string> = {
   completion: 'Completion',
 };
 
-function isTabAccessible(stageId: string, currentStage: string, hasTitle: boolean): boolean {
+function isTabAccessible(stageId: string, currentStage: string, hasTitle: boolean, researchTitle: any): boolean {
   if (stageId === 'title_proposal') return true;
   if (stageId === 'admin_authorization') return hasTitle;
+  if (stageId === 'proposal_stage') return researchTitle?.admin_status === 'authorized';
   return STAGE_ORDER.indexOf(stageId) <= STAGE_ORDER.indexOf(currentStage);
 }
 
@@ -58,7 +59,7 @@ function SBadge({ status }: { status: string }) {
   );
 }
 
-export default function StudentDashboard() {
+function StudentDashboardContent() {
   const searchParams = useSearchParams();
   const [user, setUser] = useState({ name: '', role: 'student', facultyId: 0, userId: 0 });
   const [studentData, setStudentData] = useState<any>(null);
@@ -69,6 +70,7 @@ export default function StudentDashboard() {
   const [finalDefense, setFinalDefense] = useState<any>(null);
   const [externalReview, setExternalReview] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [docComments, setDocComments] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('title_proposal');
 
   useEffect(() => {
@@ -100,16 +102,17 @@ export default function StudentDashboard() {
       const mine = sd.students.find((s: any) => s.user_id === payload.userId);
       if (!mine) return;
       setStudentData(mine);
-      const [titleRes, supRes, docRes, defRes, extRes, msgRes] = await Promise.all([
+      const [titleRes, supRes, docRes, defRes, extRes, msgRes, dcRes] = await Promise.all([
         fetch(`/api/research-titles?student_id=${mine.id}`),
         fetch(`/api/supervisors?faculty_id=${payload.facultyId}`),
         fetch(`/api/documents?student_id=${mine.id}`),
         fetch(`/api/defenses?student_id=${mine.id}`),
         fetch(`/api/external-reviews?student_id=${mine.id}`),
         fetch(`/api/messages?user_id=${payload.userId}&student_id=${mine.id}`),
+        fetch(`/api/document-comments?student_id=${mine.id}`),
       ]);
-      const [td, supD, docD, defD, extD, msgD] = await Promise.all([
-        titleRes.json(), supRes.json(), docRes.json(), defRes.json(), extRes.json(), msgRes.json(),
+      const [td, supD, docD, defD, extD, msgD, dcD] = await Promise.all([
+        titleRes.json(), supRes.json(), docRes.json(), defRes.json(), extRes.json(), msgRes.json(), dcRes.json(),
       ]);
       if (td.researchTitles?.length > 0) setResearchTitle(td.researchTitles[0]);
       if (supD.supervisors) setSupervisors(supD.supervisors);
@@ -120,6 +123,7 @@ export default function StudentDashboard() {
       }
       if (extD.externalReviews?.length > 0) setExternalReview(extD.externalReviews[0]);
       if (msgD.messages) setMessages(msgD.messages);
+      if (dcD.comments) setDocComments(dcD.comments);
     } catch (err) { console.error('Fetch error:', err); }
     finally { setLoading(false); }
   };
@@ -190,7 +194,7 @@ export default function StudentDashboard() {
 
   const currentStage = studentData?.current_stage || 'title_proposal';
   const hasTitle = !!researchTitle;
-  const tabAccessible = (id: string) => isTabAccessible(id, currentStage, hasTitle);
+  const tabAccessible = (id: string) => isTabAccessible(id, currentStage, hasTitle, researchTitle);
   const tabStatus = (id: string): 'completed' | 'current' | 'locked' => {
     if (!tabAccessible(id)) return 'locked';
     const ci = STAGE_ORDER.indexOf(currentStage);
@@ -202,6 +206,7 @@ export default function StudentDashboard() {
   };
   const handleTabClick = (id: string) => { if (tabAccessible(id)) setActiveTab(id); };
   const getDocsFor = (stage: string) => documents.filter(d => d.stage === stage);
+  const getDocFeedback = (docId: number) => docComments.filter(c => c.document_id === docId);
 
   if (loading) {
     return (
@@ -210,6 +215,55 @@ export default function StudentDashboard() {
       </DashboardLayout>
     );
   }
+
+  const DocCard = ({ doc }: { doc: any }) => {
+    const [showComments, setShowComments] = useState(false);
+    const feedback = getDocFeedback(doc.id);
+    const needsAttention = doc.status === 'correction_required' || doc.status === 'rejected';
+    const hasComments = feedback.length > 0;
+    return (
+      <div className={`border rounded-xl overflow-hidden ${needsAttention ? 'border-orange-300' : 'border-gray-200'}`}>
+        <div className={`flex items-center justify-between p-3 ${needsAttention ? 'bg-orange-50' : 'bg-gray-50'}`}>
+          <div>
+            <p className="text-sm font-medium text-gray-800">{doc.document_title}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Version {doc.version_number} · {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <SBadge status={doc.status} />
+            {hasComments && (
+              <button
+                onClick={() => setShowComments(v => !v)}
+                className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium border transition-colors ${showComments ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-700 border-orange-400 hover:bg-orange-50'}`}
+              >
+                <MessageSquare className="w-3 h-3" />
+                {showComments ? 'Hide Comments' : `View Comments (${feedback.length})`}
+              </button>
+            )}
+            <a href={doc.file_path} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-white px-2.5 py-1 rounded font-medium" style={{ backgroundColor: '#1B5E20' }}>
+              <Download className="w-3 h-3" /> View
+            </a>
+          </div>
+        </div>
+        {showComments && hasComments && (
+          <div className="p-3 border-t border-orange-200 space-y-2 bg-white">
+            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {needsAttention ? 'Supervisor Feedback — Action Required' : 'Review History'}
+            </p>
+            {feedback.map((c: any) => (
+              <div key={c.id} className={`rounded-lg p-3 border ${needsAttention ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-gray-700">{c.commenter_name}</span>
+                  <span className="text-xs text-gray-400">{new Date(c.created_at).toLocaleDateString()}</span>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">{c.comment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -339,12 +393,7 @@ export default function StudentDashboard() {
               <div>
                 <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><FileText className="w-4 h-4" /> Uploaded Documents</h3>
                 <div className="space-y-2">
-                  {getDocsFor('proposal').map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50">
-                      <div><p className="text-sm font-medium text-gray-800">{doc.document_title}</p><p className="text-xs text-gray-500 mt-0.5">Version {doc.version_number} · {new Date(doc.uploaded_at).toLocaleDateString()}</p></div>
-                      <div className="flex items-center gap-2"><SBadge status={doc.status} /><a href={doc.file_path} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-white px-2 py-1 rounded" style={{ backgroundColor: '#1B5E20' }}><Download className="w-3 h-3" /> View</a></div>
-                    </div>
-                  ))}
+                  {getDocsFor('proposal').map(doc => <DocCard key={doc.id} doc={doc} />)}
                 </div>
               </div>
             )}
@@ -411,12 +460,7 @@ export default function StudentDashboard() {
                   <input type="file" required accept=".pdf,.doc,.docx" onChange={e => setCh4Form({ ...ch4Form, file: e.target.files?.[0] || null })} className="w-full text-sm text-gray-500" />
                   <button type="submit" disabled={submitting} className="w-full text-white py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: '#1B5E20' }}>Upload Chapter 4</button>
                 </form>
-                {getDocsFor('chapter_4').map(doc => (
-                  <div key={doc.id} className="mt-3 flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div><p className="text-xs font-medium">{doc.document_title}</p><p className="text-xs text-gray-400">v{doc.version_number}</p></div>
-                    <SBadge status={doc.status} />
-                  </div>
-                ))}
+                {getDocsFor('chapter_4').map(doc => <DocCard key={doc.id} doc={doc} />)}
               </div>
               <div className="border border-gray-200 rounded-xl p-4">
                 <h3 className="font-semibold text-gray-800 mb-3">Chapter 5</h3>
@@ -425,12 +469,7 @@ export default function StudentDashboard() {
                   <input type="file" required accept=".pdf,.doc,.docx" onChange={e => setCh5Form({ ...ch5Form, file: e.target.files?.[0] || null })} className="w-full text-sm text-gray-500" />
                   <button type="submit" disabled={submitting} className="w-full text-white py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: '#1B5E20' }}>Upload Chapter 5</button>
                 </form>
-                {getDocsFor('chapter_5').map(doc => (
-                  <div key={doc.id} className="mt-3 flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div><p className="text-xs font-medium">{doc.document_title}</p><p className="text-xs text-gray-400">v{doc.version_number}</p></div>
-                    <SBadge status={doc.status} />
-                  </div>
-                ))}
+                {getDocsFor('chapter_5').map(doc => <DocCard key={doc.id} doc={doc} />)}
               </div>
             </div>
           </div>
@@ -450,12 +489,7 @@ export default function StudentDashboard() {
             {getDocsFor('final_report').length > 0 && (
               <div className="space-y-2">
                 <h3 className="font-semibold text-sm text-gray-700">Submitted Reports</h3>
-                {getDocsFor('final_report').map(doc => (
-                  <div key={doc.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50">
-                    <div><p className="text-sm font-medium">{doc.document_title}</p><p className="text-xs text-gray-500">Version {doc.version_number} · {new Date(doc.uploaded_at).toLocaleDateString()}</p></div>
-                    <div className="flex items-center gap-2"><SBadge status={doc.status} /><a href={doc.file_path} target="_blank" rel="noreferrer" className="text-xs text-white px-2 py-1 rounded flex items-center gap-1" style={{ backgroundColor: '#1B5E20' }}><Download className="w-3 h-3" /> View</a></div>
-                  </div>
-                ))}
+                {getDocsFor('final_report').map(doc => <DocCard key={doc.id} doc={doc} />)}
               </div>
             )}
           </div>
@@ -605,5 +639,13 @@ export default function StudentDashboard() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function StudentDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-500">Loading...</div>}>
+      <StudentDashboardContent />
+    </Suspense>
   );
 }

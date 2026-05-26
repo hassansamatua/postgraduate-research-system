@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,7 @@ function SBadge({ status }: { status: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${map[status] || 'bg-gray-100 text-gray-600'}`}>{status?.replace(/_/g, ' ')}</span>;
 }
 
-export default function SupervisorDashboard() {
+function SupervisorDashboardContent() {
   const searchParams = useSearchParams();
   const [user, setUser] = useState({ name: '', role: 'supervisor', userId: 0, facultyId: 0 });
   const [students, setStudents] = useState<any[]>([]);
@@ -74,21 +74,34 @@ export default function SupervisorDashboard() {
     if (!reviewModal) return;
     setSubmitting(true);
     try {
-      await fetch('/api/approvals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: reviewModal.studentId,
-          stage: reviewModal.stage,
-          status: reviewModal.status,
-          comments: reviewModal.comments,
+      await Promise.all([
+        fetch('/api/approvals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentId: reviewModal.studentId,
+            stage: reviewModal.stage,
+            status: reviewModal.status,
+            comments: reviewModal.comments,
+          }),
         }),
-      });
-      await fetch(`/api/documents/${reviewModal.docId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: reviewModal.status, comments: reviewModal.comments }),
-      });
+        fetch(`/api/documents/${reviewModal.docId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: reviewModal.status }),
+        }),
+        ...(reviewModal.comments.trim() ? [
+          fetch('/api/document-comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              documentId: reviewModal.docId,
+              comment: reviewModal.comments,
+              commentType: reviewModal.status,
+            }),
+          }),
+        ] : []),
+      ]);
       setReviewModal(null);
       await fetchAll();
     } finally { setSubmitting(false); }
@@ -347,5 +360,13 @@ export default function SupervisorDashboard() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+export default function SupervisorDashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-500">Loading...</div>}>
+      <SupervisorDashboardContent />
+    </Suspense>
   );
 }

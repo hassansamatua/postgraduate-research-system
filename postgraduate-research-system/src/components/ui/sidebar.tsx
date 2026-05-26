@@ -3,20 +3,22 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { 
-  Home, 
-  Users, 
-  FileText, 
-  Calendar, 
-  MessageSquare, 
-  Bell, 
+import {
+  Home,
+  Users,
+  FileText,
+  Calendar,
+  MessageSquare,
+  Bell,
   Settings,
   LogOut,
   Shield,
   GraduationCap,
   ClipboardCheck,
   FileCheck,
-  UserCheck
+  UserCheck,
+  Activity,
+  Clock
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,13 +28,14 @@ interface SidebarProps {
 
 const menuItems: Record<string, Array<{ href: string; label: string; icon: any; tab?: string }>> = {
   admin: [
-    { href: '/dashboard/admin', label: 'Dashboard', icon: Home },
-    { href: '/dashboard/admin/students', label: 'Students', icon: Users },
-    { href: '/dashboard/admin/supervisors', label: 'Supervisors', icon: GraduationCap },
-    { href: '/dashboard/admin/faculties', label: 'Faculties', icon: FileText },
-    { href: '/dashboard/admin/defenses', label: 'Defenses', icon: Calendar },
-    { href: '/dashboard/admin/reports', label: 'Reports', icon: FileCheck },
-    { href: '/dashboard/admin/audit', label: 'Audit Logs', icon: Shield },
+    { href: '/dashboard/admin', label: 'Dashboard', icon: Home, tab: '' },
+    { href: '/dashboard/admin?tab=authorizations', label: 'Authorizations', icon: Shield, tab: 'authorizations' },
+    { href: '/dashboard/admin?tab=students', label: 'Students', icon: Users, tab: 'students' },
+    { href: '/dashboard/admin?tab=activity', label: 'Activity', icon: Activity, tab: 'activity' },
+    { href: '/dashboard/admin?tab=defenses', label: 'Defenses', icon: Calendar, tab: 'defenses' },
+    { href: '/dashboard/admin?tab=ext_reviews', label: 'Ext. Reviews', icon: UserCheck, tab: 'ext_reviews' },
+    { href: '/dashboard/admin?tab=reports', label: 'Reports', icon: FileCheck, tab: 'reports' },
+    { href: '/dashboard/admin?tab=documents', label: 'Documents', icon: FileText, tab: 'documents' },
   ],
   student: [
     { href: '/dashboard/student', label: 'Dashboard', icon: Home, tab: '' },
@@ -47,11 +50,10 @@ const menuItems: Record<string, Array<{ href: string; label: string; icon: any; 
     { href: '/dashboard/student?tab=completion', label: 'Completion', icon: Bell, tab: 'completion' },
   ],
   faculty: [
-    { href: '/dashboard/faculty', label: 'Dashboard', icon: Home },
-    { href: '/dashboard/faculty/titles', label: 'Title Reviews', icon: FileText },
-    { href: '/dashboard/faculty/proposals', label: 'Proposals', icon: FileCheck },
-    { href: '/dashboard/faculty/reports', label: 'Final Reports', icon: FileText },
-    { href: '/dashboard/faculty/students', label: 'Students', icon: Users },
+    { href: '/dashboard/faculty', label: 'Dashboard', icon: Home, tab: '' },
+    { href: '/dashboard/faculty?tab=pending', label: 'Pending Review', icon: Clock, tab: 'pending' },
+    { href: '/dashboard/faculty?tab=all', label: 'All Titles', icon: FileText, tab: 'all' },
+    { href: '/dashboard/faculty?tab=documents', label: 'Documents', icon: FileCheck, tab: 'documents' },
   ],
   supervisor: [
     { href: '/dashboard/supervisor', label: 'Dashboard', icon: Home, tab: '' },
@@ -60,14 +62,14 @@ const menuItems: Record<string, Array<{ href: string; label: string; icon: any; 
     { href: '/dashboard/supervisor?tab=messages', label: 'Messages', icon: MessageSquare, tab: 'messages' },
   ],
   auditor: [
-    { href: '/dashboard/auditor', label: 'Dashboard', icon: Home },
-    { href: '/dashboard/auditor/research', label: 'Research Topics', icon: FileText },
-    { href: '/dashboard/auditor/workload', label: 'Supervisor Workload', icon: UserCheck },
-    { href: '/dashboard/auditor/compliance', label: 'Compliance', icon: Shield },
+    { href: '/dashboard/auditor', label: 'Dashboard', icon: Home, tab: '' },
+    { href: '/dashboard/auditor?tab=research', label: 'Research Topics', icon: FileText, tab: 'research' },
+    { href: '/dashboard/auditor?tab=workload', label: 'Supervisor Workload', icon: UserCheck, tab: 'workload' },
+    { href: '/dashboard/auditor?tab=compliance', label: 'Compliance', icon: Shield, tab: 'compliance' },
   ],
   external_reviewer: [
-    { href: '/dashboard/external-reviewer', label: 'Dashboard', icon: Home },
-    { href: '/dashboard/external-reviewer/reviews', label: 'Assigned Reviews', icon: FileCheck },
+    { href: '/dashboard/external-reviewer', label: 'Dashboard', icon: Home, tab: '' },
+    { href: '/dashboard/external-reviewer?tab=reviews', label: 'Assigned Reviews', icon: FileCheck, tab: 'reviews' },
   ],
 };
 

@@ -13,17 +13,23 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('document_id');
+    const studentId = searchParams.get('student_id');
 
     let query = `
-      SELECT dc.*, u.name as commenter_name, u.role as commenter_role
+      SELECT dc.*, u.name as commenter_name, u.role as commenter_role,
+             rd.document_title, rd.stage, rd.student_id
       FROM document_comments dc
       JOIN users u ON dc.user_id = u.id
+      JOIN research_documents rd ON dc.document_id = rd.id
     `;
     const params: any[] = [];
 
     if (documentId) {
       query += ' WHERE dc.document_id = ?';
       params.push(documentId);
+    } else if (studentId) {
+      query += ' WHERE rd.student_id = ?';
+      params.push(studentId);
     }
 
     query += ' ORDER BY dc.created_at DESC';
