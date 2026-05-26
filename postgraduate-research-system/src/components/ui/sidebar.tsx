@@ -59,6 +59,7 @@ const menuItems: Record<string, Array<{ href: string; label: string; icon: any; 
     { href: '/dashboard/supervisor', label: 'Dashboard', icon: Home, tab: '' },
     { href: '/dashboard/supervisor?tab=students', label: 'My Students', icon: Users, tab: 'students' },
     { href: '/dashboard/supervisor?tab=documents', label: 'Document Reviews', icon: FileCheck, tab: 'documents' },
+    { href: '/dashboard/supervisor?tab=defenses', label: 'Defenses', icon: Calendar, tab: 'defenses' },
     { href: '/dashboard/supervisor?tab=messages', label: 'Messages', icon: MessageSquare, tab: 'messages' },
   ],
   auditor: [
