@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'student', 'faculty', 'supervisor', 'auditor', 'external_reviewer') NOT NULL,
+    role ENUM('super_admin', 'admin', 'student', 'faculty', 'supervisor', 'auditor', 'external_reviewer') NOT NULL,
     faculty_id INT NULL,
     department_id INT NULL,
     status ENUM('active', 'inactive') DEFAULT 'active',

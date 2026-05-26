@@ -37,6 +37,7 @@ export default function LoginPage() {
 
       // Redirect based on role
       const redirectMap: Record<string, string> = {
+        super_admin: '/dashboard/super-admin',
         admin: '/dashboard/admin',
         student: '/dashboard/student',
         faculty: '/dashboard/faculty',
@@ -108,6 +109,7 @@ export default function LoginPage() {
             Demo Credentials:
           </p>
           <div className="space-y-2 text-xs text-gray-500">
+            <p>Super Admin: superadmin@research.test / password123</p>
             <p>Admin: admin@research.test / password123</p>
             <p>Student: student@research.test / password123</p>
             <p>Faculty: faculty@research.test / password123</p>

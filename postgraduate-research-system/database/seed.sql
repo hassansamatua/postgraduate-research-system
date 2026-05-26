@@ -26,6 +26,8 @@ INSERT INTO departments (faculty_id, name) VALUES
 -- Insert Users with hashed passwords (password123 for all)
 -- Note: In production, use proper password hashing
 INSERT INTO users (name, email, password, role, faculty_id, department_id, status) VALUES
+-- Super Admin
+('Super Admin', 'superadmin@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'super_admin', NULL, NULL, 'active'),
 -- Admin
 ('Admin User', 'admin@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'admin', NULL, NULL, 'active'),
 -- Faculty

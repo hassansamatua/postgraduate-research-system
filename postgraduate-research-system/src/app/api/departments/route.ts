@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,25 +11,26 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const role = searchParams.get('role');
+    const facultyId = searchParams.get('faculty_id');
 
     let query = `
-      SELECT u.*, f.name as faculty_name, d.name as department_name
-      FROM users u
-      LEFT JOIN faculties f ON u.faculty_id = f.id
-      LEFT JOIN departments d ON u.department_id = d.id
+      SELECT d.*, f.name as faculty_name
+      FROM departments d
+      JOIN faculties f ON d.faculty_id = f.id
     `;
     const params: any[] = [];
-    if (role) {
-      query += ' WHERE u.role = ?';
-      params.push(role);
+
+    if (facultyId) {
+      query += ' WHERE d.faculty_id = ?';
+      params.push(facultyId);
     }
-    query += ' ORDER BY u.name ASC';
+
+    query += ' ORDER BY d.name ASC';
 
     const [rows] = await pool.query(query, params) as any[];
-    return NextResponse.json({ users: rows });
+    return NextResponse.json({ departments: rows });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching departments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -43,18 +43,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, email, password, role, faculty_id, department_id } = await request.json();
-
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { faculty_id, name } = await request.json();
 
     const [result] = await pool.query(
-      'INSERT INTO users (name, email, password, role, faculty_id, department_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, email, hashedPassword, role, faculty_id || null, department_id || null]
+      'INSERT INTO departments (faculty_id, name) VALUES (?, ?)',
+      [faculty_id, name]
     ) as any[];
 
-    return NextResponse.json({ id: result.insertId, message: 'User created successfully' }, { status: 201 });
+    return NextResponse.json({ id: result.insertId, message: 'Department created successfully' }, { status: 201 });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('Error creating department:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

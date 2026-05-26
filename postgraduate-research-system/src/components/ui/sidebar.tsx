@@ -18,7 +18,9 @@ import {
   FileCheck,
   UserCheck,
   Activity,
-  Clock
+  Clock,
+  Building2,
+  MapPin
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +29,12 @@ interface SidebarProps {
 }
 
 const menuItems: Record<string, Array<{ href: string; label: string; icon: any; tab?: string }>> = {
+  super_admin: [
+    { href: '/dashboard/super-admin', label: 'Dashboard', icon: Home, tab: '' },
+    { href: '/dashboard/super-admin?tab=users', label: 'Users', icon: Users, tab: 'users' },
+    { href: '/dashboard/super-admin?tab=faculties', label: 'Faculties', icon: Building2, tab: 'faculties' },
+    { href: '/dashboard/super-admin?tab=departments', label: 'Departments', icon: MapPin, tab: 'departments' },
+  ],
   admin: [
     { href: '/dashboard/admin', label: 'Dashboard', icon: Home, tab: '' },
     { href: '/dashboard/admin?tab=authorizations', label: 'Authorizations', icon: Shield, tab: 'authorizations' },

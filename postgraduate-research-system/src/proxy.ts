@@ -22,6 +22,7 @@ export function proxy(request: NextRequest) {
 
   // Role-based access control
   const protectedPaths = {
+    '/dashboard/super-admin': ['super_admin'],
     '/dashboard/admin': ['admin'],
     '/dashboard/student': ['student'],
     '/dashboard/faculty': ['faculty'],
