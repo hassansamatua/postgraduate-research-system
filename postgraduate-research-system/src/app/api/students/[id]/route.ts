@@ -63,6 +63,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       values
     );
 
+    // Delete ALL messages for this student when research is completed
+    if (researchStatus === 'completed' || currentStage === 'completion') {
+      // Fetch the student's user_id so we can match sender/receiver
+      const [studentRows] = await pool.query('SELECT user_id FROM students WHERE id = ?', [id]) as any[];
+      if (studentRows.length > 0) {
+        const studentUserId = studentRows[0].user_id;
+        // Delete by student_id (stored by student side) AND by sender/receiver (stored by supervisor side)
+        await pool.query(
+          'DELETE FROM messages WHERE student_id = ? OR sender_id = ? OR receiver_id = ?',
+          [id, studentUserId, studentUserId]
+        );
+      }
+    }
+
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, module, description, ip_address) VALUES (?, ?, ?, ?, ?)',
       [payload.userId, 'Update Student', 'Students', `Updated student ${id}`, request.headers.get('x-forwarded-for') || 'unknown']

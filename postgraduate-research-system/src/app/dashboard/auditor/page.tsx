@@ -6,7 +6,8 @@ import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
 import { getCookie, decodeToken } from '@/lib/utils';
-import { FileText, Users, AlertTriangle, ShieldCheck, Plus, Clock, BarChart2, CheckCircle, Printer, X } from 'lucide-react';
+import { FileText, Users, AlertTriangle, ShieldCheck, Plus, Clock, BarChart2, CheckCircle, Printer } from 'lucide-react';
+import AuditReport from './AuditReport';
 
 function timePending(submittedAt: string): string {
   const diff = Date.now() - new Date(submittedAt).getTime();
@@ -508,224 +509,19 @@ function AuditorDashboardContent() {
       )}
       {/* Audit Report Modal */}
       {showReport && (
-        <>
-          <style>{`@media print{.no-print{display:none!important;}.print-area{position:fixed;inset:0;z-index:9999;background:#fff;overflow:auto;padding:40px;}}`}</style>
-          <div className="fixed inset-0 z-50 bg-black/60 flex items-start justify-center overflow-y-auto py-8 no-print" onClick={e => { if(e.target === e.currentTarget) setShowReport(false); }}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 print-area" id="audit-report">
-              {/* Toolbar */}
-              <div className="flex items-center justify-between px-8 py-4 border-b border-gray-200 no-print">
-                <span className="text-sm text-gray-500">Preview — click <strong>Print / Save as PDF</strong> to export</span>
-                <div className="flex gap-3">
-                  <button onClick={() => window.print()}
-                    className="flex items-center gap-2 text-white text-sm px-4 py-2 rounded-lg" style={{backgroundColor:'#1B5E20'}}>
-                    <Printer className="w-4 h-4" /> Print / Save as PDF
-                  </button>
-                  <button onClick={() => setShowReport(false)} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"><X className="w-4 h-4" /></button>
-                </div>
-              </div>
-
-              {/* Report Content */}
-              <div className="px-10 py-8 space-y-8 text-gray-800 text-sm">
-                {/* Letterhead */}
-                <div className="text-center border-b-2 border-gray-800 pb-6">
-                  <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">Zanzibar University</p>
-                  <h1 className="text-2xl font-bold text-gray-900">Audit &amp; Quality Assurance Report</h1>
-                  <p className="text-sm text-gray-600 mt-1">Postgraduate Research Management System</p>
-                  <div className="mt-3 flex justify-center gap-8 text-xs text-gray-500">
-                    <span>Generated: {reportDate} at {reportTime}</span>
-                    <span>Prepared by: {user.name} (DVC Academic &amp; QA)</span>
-                  </div>
-                </div>
-
-                {/* 1. Executive Summary */}
-                <section>
-                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-300 pb-1 mb-3">1. Executive Summary</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { label: 'Total Research Titles', value: stats.totalResearch, color: 'text-gray-900' },
-                      { label: 'Pending Review', value: stats.pendingAudit, color: 'text-yellow-600' },
-                      { label: 'Fully Authorized', value: stats.completedAudit, color: 'text-green-700' },
-                      { label: 'Open Risk Flags', value: openRiskFlags.length, color: 'text-red-600' },
-                    ].map(s => (
-                      <div key={s.label} className="border border-gray-200 rounded-lg p-3 text-center">
-                        <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                        <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {[
-                      { label: 'Total Students', value: students.length },
-                      { label: 'Total Supervisors', value: supervisors.length },
-                      { label: 'Overloaded Supervisors', value: overloadedSupervisors.length },
-                      { label: 'Students Without Title', value: studentsWithoutTitle.length },
-                      { label: 'Overdue Items (>7 days)', value: overdueItems.length },
-                      { label: 'Total Audit Comments', value: auditComments.length },
-                    ].map(s => (
-                      <div key={s.label} className="flex justify-between items-center py-1.5 border-b border-gray-100">
-                        <span className="text-gray-600">{s.label}</span>
-                        <span className="font-semibold">{s.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                {/* 2. Research Titles Status */}
-                <section>
-                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-300 pb-1 mb-3">2. Research Titles Overview</h2>
-                  <table className="w-full text-xs border border-gray-200 rounded">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {['#','Student','Title','Research Area','Faculty Status','Admin Status','Submitted'].map(h => (
-                          <th key={h} className="text-left py-2 px-3 font-semibold text-gray-600 border-b border-gray-200">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {researchTitles.length === 0 && <tr><td colSpan={7} className="py-4 text-center text-gray-400">No records</td></tr>}
-                      {researchTitles.map((t, i) => (
-                        <tr key={t.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="py-2 px-3 text-gray-400">{i + 1}</td>
-                          <td className="py-2 px-3 font-medium">{t.student_name}</td>
-                          <td className="py-2 px-3 max-w-[180px] truncate">{t.title}</td>
-                          <td className="py-2 px-3">{t.research_area || '—'}</td>
-                          <td className="py-2 px-3 capitalize">{t.faculty_status}</td>
-                          <td className="py-2 px-3 capitalize">{t.admin_status}</td>
-                          <td className="py-2 px-3 text-gray-500">{t.submitted_at ? new Date(t.submitted_at).toLocaleDateString() : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </section>
-
-                {/* 3. Supervisor Workload */}
-                <section>
-                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-300 pb-1 mb-3">3. Supervisor Workload</h2>
-                  <table className="w-full text-xs border border-gray-200 rounded">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {['Supervisor','Faculty','Department','Type','Students','Capacity','Utilisation'].map(h => (
-                          <th key={h} className="text-left py-2 px-3 font-semibold text-gray-600 border-b border-gray-200">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {supervisors.length === 0 && <tr><td colSpan={7} className="py-4 text-center text-gray-400">No supervisors</td></tr>}
-                      {supervisors.map((s, i) => {
-                        const pct = s.max_students > 0 ? Math.round((s.current_students / s.max_students) * 100) : 0;
-                        return (
-                          <tr key={s.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-2 px-3 font-medium">{s.name}</td>
-                            <td className="py-2 px-3">{s.faculty_name || '—'}</td>
-                            <td className="py-2 px-3">{s.department_name || '—'}</td>
-                            <td className="py-2 px-3 capitalize">{s.supervisor_type === 'main' ? 'Main' : 'Co'}</td>
-                            <td className="py-2 px-3">{s.current_students}</td>
-                            <td className="py-2 px-3">{s.max_students}</td>
-                            <td className={`py-2 px-3 font-semibold ${pct >= 100 ? 'text-red-600' : pct >= 75 ? 'text-orange-600' : 'text-green-700'}`}>{pct}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </section>
-
-                {/* 4. Compliance Issues */}
-                <section>
-                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-300 pb-1 mb-3">4. Compliance Issues</h2>
-                  {overdueItems.length === 0 && studentsWithoutTitle.length === 0 ? (
-                    <p className="text-green-700 font-medium">✓ No compliance issues found.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {overdueItems.length > 0 && (
-                        <div>
-                          <p className="font-semibold text-red-700 mb-2">Overdue Pending Items ({overdueItems.length})</p>
-                          <table className="w-full text-xs border border-gray-200 rounded">
-                            <thead className="bg-red-50"><tr>
-                              {['Student','Title','Faculty Status','Admin Status','Days Waiting'].map(h => <th key={h} className="text-left py-2 px-3 font-semibold text-gray-600 border-b border-gray-200">{h}</th>)}
-                            </tr></thead>
-                            <tbody>
-                              {overdueItems.map(t => (
-                                <tr key={t.id} className="border-b border-gray-100">
-                                  <td className="py-2 px-3">{t.student_name}</td>
-                                  <td className="py-2 px-3 max-w-[200px] truncate">{t.title}</td>
-                                  <td className="py-2 px-3 capitalize">{t.faculty_status}</td>
-                                  <td className="py-2 px-3 capitalize">{t.admin_status}</td>
-                                  <td className="py-2 px-3 font-bold text-red-600">{daysPending(t.submitted_at)} days</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      {studentsWithoutTitle.length > 0 && (
-                        <div>
-                          <p className="font-semibold text-yellow-700 mb-2">Students Without Research Title ({studentsWithoutTitle.length})</p>
-                          <table className="w-full text-xs border border-gray-200 rounded">
-                            <thead className="bg-yellow-50"><tr>
-                              {['Student','Reg. No.','Program'].map(h => <th key={h} className="text-left py-2 px-3 font-semibold text-gray-600 border-b border-gray-200">{h}</th>)}
-                            </tr></thead>
-                            <tbody>
-                              {studentsWithoutTitle.map(s => (
-                                <tr key={s.id} className="border-b border-gray-100">
-                                  <td className="py-2 px-3">{s.name}</td>
-                                  <td className="py-2 px-3">{s.registration_number}</td>
-                                  <td className="py-2 px-3">{s.program || '—'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </section>
-
-                {/* 5. Audit Comments & Risk Flags */}
-                <section>
-                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-300 pb-1 mb-3">5. Audit Comments &amp; Risk Flags</h2>
-                  {auditComments.length === 0 ? (
-                    <p className="text-gray-400">No audit comments recorded.</p>
-                  ) : (
-                    <table className="w-full text-xs border border-gray-200 rounded">
-                      <thead className="bg-gray-50"><tr>
-                        {['Student','Comment','Risk Level','Status'].map(h => <th key={h} className="text-left py-2 px-3 font-semibold text-gray-600 border-b border-gray-200">{h}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {auditComments.map((c, i) => (
-                          <tr key={c.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-2 px-3">{c.registration_number}</td>
-                            <td className="py-2 px-3">{c.comment}</td>
-                            <td className={`py-2 px-3 capitalize font-medium ${c.risk_level === 'critical' || c.risk_level === 'high' ? 'text-red-600' : c.risk_level === 'medium' ? 'text-yellow-600' : 'text-green-700'}`}>{c.risk_level}</td>
-                            <td className="py-2 px-3 capitalize">{c.status}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </section>
-
-                {/* Signature block */}
-                <section className="pt-6 border-t border-gray-300 mt-8">
-                  <div className="grid grid-cols-2 gap-12">
-                    <div>
-                      <div className="border-b border-gray-400 mb-1 h-8" />
-                      <p className="text-xs font-semibold">{user.name}</p>
-                      <p className="text-xs text-gray-500">DVC Academic &amp; Quality Assurance</p>
-                      <p className="text-xs text-gray-400">Date: {reportDate}</p>
-                    </div>
-                    <div>
-                      <div className="border-b border-gray-400 mb-1 h-8" />
-                      <p className="text-xs font-semibold">Vice Chancellor</p>
-                      <p className="text-xs text-gray-500">Zanzibar University</p>
-                      <p className="text-xs text-gray-400">Date: _______________</p>
-                    </div>
-                  </div>
-                  <p className="text-center text-xs text-gray-400 mt-6">— End of Report — Zanzibar University Postgraduate Research Management System —</p>
-                </section>
-              </div>
-            </div>
-          </div>
-        </>
+        <AuditReport
+          user={user}
+          stats={stats}
+          researchTitles={researchTitles}
+          students={students}
+          supervisors={supervisors}
+          auditComments={auditComments}
+          overdueItems={overdueItems}
+          studentsWithoutTitle={studentsWithoutTitle}
+          openRiskFlags={openRiskFlags}
+          overloadedSupervisors={overloadedSupervisors}
+          onClose={() => setShowReport(false)}
+        />
       )}
     </DashboardLayout>
   );
