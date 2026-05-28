@@ -18,6 +18,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check if supervisor is a co-supervisor - they cannot change document status
+    if (payload.role === 'supervisor') {
+      const [supRows] = await pool.query(
+        'SELECT supervisor_type FROM supervisors WHERE user_id = ?',
+        [payload.userId]
+      ) as any[];
+      if (supRows.length > 0 && supRows[0].supervisor_type === 'co') {
+        return NextResponse.json({ error: 'Co-supervisors cannot change document status. Only main supervisors can approve/reject.' }, { status: 403 });
+      }
+    }
+
     await pool.query(
       'UPDATE research_documents SET status = ?, updated_at = NOW() WHERE id = ?',
       [status, id]

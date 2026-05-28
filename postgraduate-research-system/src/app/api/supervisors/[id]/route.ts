@@ -7,20 +7,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const token = request.cookies.get('token')?.value;
     const payload = verifyToken(token || '');
-    if (!payload || payload.role !== 'super_admin') {
+    
+    if (!payload || (payload.role !== 'super_admin' && payload.role !== 'admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, abbreviation } = await request.json();
+    const { userId, facultyId, departmentId, specialization, maxStudents, supervisorType } = await request.json();
 
     await pool.query(
-      'UPDATE faculties SET name = ?, abbreviation = ? WHERE id = ?',
-      [name, abbreviation, id]
+      'UPDATE supervisors SET user_id = ?, faculty_id = ?, department_id = ?, specialization = ?, max_students = ?, supervisor_type = ? WHERE id = ?',
+      [userId, facultyId, departmentId, specialization, maxStudents, supervisorType, id]
     );
 
-    return NextResponse.json({ message: 'Faculty updated successfully' });
+    return NextResponse.json({ message: 'Supervisor updated successfully' });
   } catch (error) {
-    console.error('Error updating faculty:', error);
+    console.error('Error updating supervisor:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -30,15 +31,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params;
     const token = request.cookies.get('token')?.value;
     const payload = verifyToken(token || '');
-    if (!payload || payload.role !== 'super_admin') {
+    
+    if (!payload || (payload.role !== 'super_admin' && payload.role !== 'admin')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await pool.query('DELETE FROM faculties WHERE id = ?', [id]);
+    await pool.query('DELETE FROM supervisors WHERE id = ?', [id]);
 
-    return NextResponse.json({ message: 'Faculty deleted successfully' });
+    return NextResponse.json({ message: 'Supervisor deleted successfully' });
   } catch (error) {
-    console.error('Error deleting faculty:', error);
+    console.error('Error deleting supervisor:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

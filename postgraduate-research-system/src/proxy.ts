@@ -26,7 +26,7 @@ export function proxy(request: NextRequest) {
     '/dashboard/admin': ['admin'],
     '/dashboard/student': ['student'],
     '/dashboard/faculty': ['faculty'],
-    '/dashboard/supervisor': ['supervisor'],
+    '/dashboard/supervisor': ['supervisor', 'co_supervisor'],
     '/dashboard/auditor': ['auditor'],
     '/dashboard/external-reviewer': ['external_reviewer'],
   };

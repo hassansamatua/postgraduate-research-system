@@ -9,9 +9,10 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('super_admin', 'admin', 'student', 'faculty', 'supervisor', 'auditor', 'external_reviewer') NOT NULL,
+    role ENUM('super_admin', 'admin', 'student', 'faculty', 'supervisor', 'co_supervisor', 'auditor', 'external_reviewer') NOT NULL,
     faculty_id INT NULL,
     department_id INT NULL,
+    profile_picture VARCHAR(500) NULL,
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS faculties (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
+    abbreviation VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -64,8 +65,8 @@ CREATE TABLE IF NOT EXISTS students (
 CREATE TABLE IF NOT EXISTS supervisors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    faculty_id INT NOT NULL,
-    department_id INT NOT NULL,
+    faculty_id INT NULL,
+    department_id INT NULL,
     specialization VARCHAR(255) NOT NULL,
     max_students INT DEFAULT 5,
     current_students INT DEFAULT 0,

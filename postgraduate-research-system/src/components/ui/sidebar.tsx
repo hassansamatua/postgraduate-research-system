@@ -70,6 +70,13 @@ const menuItems: Record<string, Array<{ href: string; label: string; icon: any; 
     { href: '/dashboard/supervisor?tab=defenses', label: 'Defenses', icon: Calendar, tab: 'defenses' },
     { href: '/dashboard/supervisor?tab=messages', label: 'Messages', icon: MessageSquare, tab: 'messages' },
   ],
+  co_supervisor: [
+    { href: '/dashboard/supervisor', label: 'Dashboard', icon: Home, tab: '' },
+    { href: '/dashboard/supervisor?tab=students', label: 'My Students', icon: Users, tab: 'students' },
+    { href: '/dashboard/supervisor?tab=documents', label: 'Document Reviews', icon: FileCheck, tab: 'documents' },
+    { href: '/dashboard/supervisor?tab=defenses', label: 'Defenses', icon: Calendar, tab: 'defenses' },
+    { href: '/dashboard/supervisor?tab=messages', label: 'Messages', icon: MessageSquare, tab: 'messages' },
+  ],
   auditor: [
     { href: '/dashboard/auditor', label: 'Dashboard', icon: Home, tab: '' },
     { href: '/dashboard/auditor?tab=research', label: 'Research Topics', icon: FileText, tab: 'research' },
@@ -100,8 +107,11 @@ export default function Sidebar({ role, onClose }: SidebarProps) {
   return (
     <div className="w-64 text-white min-h-screen flex flex-col" style={{backgroundColor:'#1B5E20'}}>
       <div className="p-6 border-b border-green-800">
-        <h1 className="text-xl font-bold">Research System</h1>
-        <p className="text-green-200 text-sm capitalize">{role.replace('_', ' ')}</p>
+        <div className="flex items-center gap-3 mb-2">
+          <img src="/logo.png" alt="Zanzibar University Logo" className="w-10 h-10 object-contain" />
+          <h1 className="text-xl font-bold">Research System</h1>
+        </div>
+        <p className="text-green-200 text-sm capitalize ml-13">{role.replace('_', ' ')}</p>
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">

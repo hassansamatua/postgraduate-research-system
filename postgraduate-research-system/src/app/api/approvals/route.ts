@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('token')?.value;
     const payload = verifyToken(token || '');
-    
+
     if (!payload) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -57,6 +57,17 @@ export async function POST(request: NextRequest) {
     const approverRole = payload.role as string;
     if (!['faculty', 'supervisor', 'admin'].includes(approverRole)) {
       return NextResponse.json({ error: 'Unauthorized role' }, { status: 401 });
+    }
+
+    // Check if supervisor is a co-supervisor - they cannot create approvals
+    if (approverRole === 'supervisor') {
+      const [supRows] = await pool.query(
+        'SELECT supervisor_type FROM supervisors WHERE user_id = ?',
+        [payload.userId]
+      ) as any[];
+      if (supRows.length > 0 && supRows[0].supervisor_type === 'co') {
+        return NextResponse.json({ error: 'Co-supervisors cannot approve or reject documents. Only main supervisors can approve.' }, { status: 403 });
+      }
     }
 
     const [result] = await pool.query(

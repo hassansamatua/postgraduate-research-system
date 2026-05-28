@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
       SELECT s.*, u.name, u.email, f.name as faculty_name, d.name as department_name
       FROM students s
       JOIN users u ON s.user_id = u.id
-      JOIN faculties f ON s.faculty_id = f.id
-      JOIN departments d ON s.department_id = d.id
+      LEFT JOIN faculties f ON s.faculty_id = f.id
+      LEFT JOIN departments d ON s.department_id = d.id
     `) as any[];
 
     return NextResponse.json({ students: rows });

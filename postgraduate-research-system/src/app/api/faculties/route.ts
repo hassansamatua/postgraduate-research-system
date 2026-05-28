@@ -26,11 +26,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, description } = await request.json();
+    const { name, abbreviation } = await request.json();
 
     const [result] = await pool.query(
-      'INSERT INTO faculties (name, description) VALUES (?, ?)',
-      [name, description]
+      'INSERT INTO faculties (name, abbreviation) VALUES (?, ?)',
+      [name, abbreviation]
     ) as any[];
 
     return NextResponse.json({ id: result.insertId, message: 'Faculty created successfully' }, { status: 201 });

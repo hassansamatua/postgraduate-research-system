@@ -2,11 +2,11 @@
 USE postgraduate_research_system;
 
 -- Insert Faculties
-INSERT INTO faculties (name, description) VALUES
-('Faculty of Science', 'Faculty of Science and Technology'),
-('Faculty of Engineering', 'Faculty of Engineering and Technology'),
-('Faculty of Business', 'Faculty of Business and Management'),
-('Faculty of Arts', 'Faculty of Arts and Humanities');
+INSERT INTO faculties (name, abbreviation) VALUES
+('Faculty of Science', 'FST'),
+('Faculty of Engineering', 'FET'),
+('Faculty of Business', 'FBM'),
+('Faculty of Arts', 'FAH');
 
 -- Insert Departments
 INSERT INTO departments (faculty_id, name) VALUES
@@ -40,7 +40,7 @@ INSERT INTO users (name, email, password, role, faculty_id, department_id, statu
 -- Supervisors
 ('Supervisor User 1', 'supervisor@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'supervisor', 1, 1, 'active'),
 ('Supervisor User 2', 'supervisor2@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'supervisor', 2, 4, 'active'),
-('Co-Supervisor User 1', 'cosupervisor@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'supervisor', 1, 1, 'active'),
+('Co-Supervisor User 1', 'cosupervisor@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'co_supervisor', 1, 1, 'active'),
 -- Auditors
 ('Auditor User 1', 'auditor@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'auditor', NULL, NULL, 'active'),
 ('Auditor User 2', 'auditor2@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'auditor', NULL, NULL, 'active'),
@@ -49,16 +49,18 @@ INSERT INTO users (name, email, password, role, faculty_id, department_id, statu
 ('External Reviewer 2', 'reviewer2@research.test', '$2a$10$.apeKpjkzGpP2LoVFNXUNOeZSG8M9CIX4FpyC3RlyfTBYIzAqLI0m', 'external_reviewer', NULL, NULL, 'active');
 
 -- Insert Students
+-- user_id 5 = Student User 1, 6 = Student User 2, 7 = Student User 3
 INSERT INTO students (user_id, registration_number, program, faculty_id, department_id, research_status, current_stage) VALUES
-(4, 'REG2024001', 'MSc Computer Science', 1, 1, 'in_progress', 'title_proposal'),
-(5, 'REG2024002', 'MSc Civil Engineering', 2, 4, 'in_progress', 'title_proposal'),
-(6, 'REG2024003', 'PhD Computer Science', 1, 1, 'not_started', 'title_proposal');
+(5, 'REG2024001', 'MSc Computer Science', 1, 1, 'in_progress', 'title_proposal'),
+(6, 'REG2024002', 'MSc Civil Engineering', 2, 4, 'in_progress', 'title_proposal'),
+(7, 'REG2024003', 'PhD Computer Science', 1, 1, 'not_started', 'title_proposal');
 
 -- Insert Supervisors
+-- user_id 8 = Supervisor User 1, 9 = Supervisor User 2, 10 = Co-Supervisor User 1
 INSERT INTO supervisors (user_id, faculty_id, department_id, specialization, max_students, current_students, supervisor_type, status) VALUES
-(7, 1, 1, 'Artificial Intelligence', 5, 2, 'main', 'active'),
-(8, 2, 4, 'Structural Engineering', 5, 1, 'main', 'active'),
-(9, 1, 1, 'Machine Learning', 5, 1, 'co', 'active');
+(8, 1, 1, 'Artificial Intelligence', 5, 2, 'main', 'active'),
+(9, 2, 4, 'Structural Engineering', 5, 1, 'main', 'active'),
+(10, 1, 1, 'Machine Learning', 5, 1, 'co', 'active');
 
 -- Insert Sample Research Titles
 INSERT INTO research_titles (student_id, title, description, research_area, supervisor_id, co_supervisor_id, faculty_status, admin_status, final_status, submitted_at) VALUES
@@ -66,10 +68,11 @@ INSERT INTO research_titles (student_id, title, description, research_area, supe
 (2, 'Sustainable Building Materials for Green Construction', 'Investigating eco-friendly building materials for sustainable construction practices.', 'Civil Engineering', 2, NULL, 'pending', 'pending', 'pending', NOW());
 
 -- Insert Sample Notifications
+-- user_id 5,6,7 = Student User 1,2,3
 INSERT INTO notifications (user_id, title, message, type, is_read) VALUES
-(4, 'Welcome to Research System', 'Welcome to the Postgraduate Research Management System. Please submit your research title proposal.', 'info', FALSE),
 (5, 'Welcome to Research System', 'Welcome to the Postgraduate Research Management System. Please submit your research title proposal.', 'info', FALSE),
-(6, 'Welcome to Research System', 'Welcome to the Postgraduate Research Management System. Please submit your research title proposal.', 'info', FALSE);
+(6, 'Welcome to Research System', 'Welcome to the Postgraduate Research Management System. Please submit your research title proposal.', 'info', FALSE),
+(7, 'Welcome to Research System', 'Welcome to the Postgraduate Research Management System. Please submit your research title proposal.', 'info', FALSE);
 
 -- Insert Sample Audit Logs
 INSERT INTO audit_logs (user_id, action, module, description, ip_address) VALUES

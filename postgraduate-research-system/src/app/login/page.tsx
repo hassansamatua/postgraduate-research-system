@@ -60,7 +60,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold" style={{backgroundColor:'#1B5E20'}}>ZU</div>
+            <img src="/logo.png" alt="Zanzibar University Logo" className="w-12 h-12 object-contain" />
             <h1 className="text-2xl font-bold" style={{color:'#1B5E20'}}>Zanzibar University</h1>
           </div>
           <h2 className="text-lg font-semibold text-gray-700 mb-2">

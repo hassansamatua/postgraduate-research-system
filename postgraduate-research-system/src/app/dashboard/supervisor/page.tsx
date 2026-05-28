@@ -25,6 +25,8 @@ function SupervisorDashboardContent() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [defenses, setDefenses] = useState<any[]>([]);
+  const [supervisorType, setSupervisorType] = useState<'main' | 'co' | null>(null);
+  const [isCoSupervisorRole, setIsCoSupervisorRole] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'students' | 'documents' | 'messages' | 'defenses'>('students');
 
@@ -48,22 +50,39 @@ function SupervisorDashboardContent() {
       const payload = p || decodeToken(token || '');
       if (!payload) return;
       if (!p) setUser({ name: payload.name, role: payload.role, userId: payload.userId, facultyId: payload.facultyId });
+      
+      // Check if user has co_supervisor role
+      setIsCoSupervisorRole(payload.role === 'co_supervisor');
 
-      const [studRes, docRes, msgRes, defRes] = await Promise.all([
+      const [studRes, docRes, msgRes, defRes, supRes, titlesRes] = await Promise.all([
         fetch('/api/students'),
         fetch('/api/documents'),
         fetch(`/api/messages?user_id=${payload.userId}`),
         fetch('/api/defenses'),
+        fetch(`/api/supervisors?user_id=${payload.userId}`),
+        fetch('/api/research-titles'),
       ]);
-      const [studData, docData, msgData, defData] = await Promise.all([studRes.json(), docRes.json(), msgRes.json(), defRes.json()]);
+      const [studData, docData, msgData, defenseData, supData, titlesData] = await Promise.all([studRes.json(), docRes.json(), msgRes.json(), defRes.json(), supRes.json(), titlesRes.json()]);
 
-      if (studData.students) {
-        const mine = studData.students.filter((s: any) => s.faculty_id === payload.facultyId);
-        setStudents(mine);
+      if (studData.students && supData.supervisors?.length > 0) {
+        const supId = supData.supervisors[0].id;
+        // Only show students who selected this supervisor as main or co-supervisor
+        const assignedStudentIds = new Set(
+          (titlesData.researchTitles || [])
+            .filter((t: any) => t.supervisor_id === supId || t.co_supervisor_id === supId)
+            .map((t: any) => t.student_id)
+        );
+        setStudents(studData.students.filter((s: any) => assignedStudentIds.has(s.id)));
       }
       if (docData.documents) setDocuments(docData.documents);
       if (msgData.messages) setMessages(msgData.messages);
-      if (defData.defenses) setDefenses(defData.defenses);
+      if (defenseData.defenses) setDefenses(defenseData.defenses);
+      if (supData.supervisors && supData.supervisors.length > 0) {
+        setSupervisorType(supData.supervisors[0].supervisor_type);
+      } else if (payload.role === 'co_supervisor') {
+        // If role is co_supervisor but no supervisor record, set type to co
+        setSupervisorType('co');
+      }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -97,10 +116,24 @@ function SupervisorDashboardContent() {
 
   const handleReview = async () => {
     if (!reviewModal) return;
+    
+    // Co-supervisors can only comment, not approve/reject
+    if ((supervisorType === 'co' || isCoSupervisorRole) && reviewModal.status !== 'approved') {
+      alert('Co-supervisors can only provide feedback comments. Main supervisors handle approvals.');
+      return;
+    }
+    
     setSubmitting(true);
     try {
       await Promise.all([
-        fetch('/api/approvals', {
+        // Only main supervisors can change document status
+        (supervisorType === 'main' && !isCoSupervisorRole) ? fetch(`/api/documents/${reviewModal.docId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: reviewModal.status }),
+        }) : Promise.resolve(),
+        // Only main supervisors can create approvals
+        (supervisorType === 'main' && !isCoSupervisorRole) ? fetch('/api/approvals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -109,12 +142,8 @@ function SupervisorDashboardContent() {
             status: reviewModal.status,
             comments: reviewModal.comments,
           }),
-        }),
-        fetch(`/api/documents/${reviewModal.docId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: reviewModal.status }),
-        }),
+        }) : Promise.resolve(),
+        // Both can add comments
         ...(reviewModal.comments.trim() ? [
           fetch('/api/document-comments', {
             method: 'POST',
@@ -122,7 +151,7 @@ function SupervisorDashboardContent() {
             body: JSON.stringify({
               documentId: reviewModal.docId,
               comment: reviewModal.comments,
-              commentType: reviewModal.status,
+              commentType: 'feedback',
             }),
           }),
         ] : []),
@@ -392,23 +421,30 @@ function SupervisorDashboardContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Review Document</h3>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Decision</label>
-              <div className="flex gap-2">
-                {(['approved', 'correction_required', 'rejected'] as const).map(action => (
-                  <button key={action} onClick={() => setReviewModal({...reviewModal, status: action})}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium border-2 ${
-                      reviewModal.status === action
-                        ? action === 'approved' ? 'border-green-600 bg-green-50 text-green-700'
-                          : action === 'rejected' ? 'border-red-600 bg-red-50 text-red-700'
-                          : 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                        : 'border-gray-200 text-gray-500'
-                    }`}>
-                    {action === 'approved' ? 'Approve' : action === 'rejected' ? 'Reject' : 'Request Correction'}
-                  </button>
-                ))}
+            {!(supervisorType === 'co' || isCoSupervisorRole) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Decision</label>
+                <div className="flex gap-2">
+                  {(['approved', 'correction_required', 'rejected'] as const).map(action => (
+                    <button key={action} onClick={() => setReviewModal({...reviewModal, status: action})}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium border-2 ${
+                        reviewModal.status === action
+                          ? action === 'approved' ? 'border-green-600 bg-green-50 text-green-700'
+                            : action === 'rejected' ? 'border-red-600 bg-red-50 text-red-700'
+                            : 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                          : 'border-gray-200 text-gray-500'
+                      }`}>
+                      {action === 'approved' ? 'Approve' : action === 'rejected' ? 'Reject' : 'Request Correction'}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+            {(supervisorType === 'co' || isCoSupervisorRole) && (
+              <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800">As a co-supervisor, you can only provide feedback comments. Main supervisors handle approvals and rejections.</p>
+              </div>
+            )}
             <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
             <textarea rows={3} value={reviewModal.comments} onChange={e => setReviewModal({...reviewModal, comments: e.target.value})}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700"

@@ -102,9 +102,14 @@ function StudentDashboardContent() {
       const mine = sd.students.find((s: any) => s.user_id === payload.userId);
       if (!mine) return;
       setStudentData(mine);
+      const supUrl = mine.faculty_id && mine.department_id
+        ? `/api/supervisors?faculty_id=${mine.faculty_id}&department_id=${mine.department_id}`
+        : mine.faculty_id
+        ? `/api/supervisors?faculty_id=${mine.faculty_id}`
+        : '/api/supervisors';
       const [titleRes, supRes, docRes, defRes, extRes, msgRes, dcRes] = await Promise.all([
         fetch(`/api/research-titles?student_id=${mine.id}`),
-        fetch(`/api/supervisors?faculty_id=${payload.facultyId}`),
+        fetch(supUrl),
         fetch(`/api/documents?student_id=${mine.id}`),
         fetch(`/api/defenses?student_id=${mine.id}`),
         fetch(`/api/external-reviews?student_id=${mine.id}`),

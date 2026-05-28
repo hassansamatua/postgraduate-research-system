@@ -24,6 +24,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (adminStatus && payload.role === 'admin') {
       updateFields.push('admin_status = ?');
       updateValues.push(adminStatus);
+      // Sync final_status with admin decision
+      updateFields.push('final_status = ?');
+      updateValues.push(adminStatus);
     }
     if (facultyComments) {
       updateFields.push('faculty_comments = ?');

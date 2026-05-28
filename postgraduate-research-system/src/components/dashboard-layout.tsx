@@ -15,7 +15,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, role, userName }: DashboardLayoutProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState({ name: userName, role });
+  const [user, setUser] = useState({ name: userName, role, profilePicture: '' });
 
   useEffect(() => {
     const token = getCookie('token');
@@ -27,7 +27,22 @@ export default function DashboardLayout({ children, role, userName }: DashboardL
     const payload = decodeToken(token);
     if (!payload) {
       router.push('/login');
+      return;
     }
+
+    // Fetch user data including profile picture
+    fetch(`/api/users/${payload.userId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) {
+          setUser({
+            name: data.user.name,
+            role: data.user.role,
+            profilePicture: data.user.profile_picture || '',
+          });
+        }
+      })
+      .catch(err => console.error('Error fetching user data:', err));
   }, [router]);
 
   return (
@@ -55,6 +70,7 @@ export default function DashboardLayout({ children, role, userName }: DashboardL
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Navbar
           userName={user.name}
+          profilePicture={user.profilePicture}
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           showMenuButton={true}
         />

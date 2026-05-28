@@ -10,27 +10,31 @@ import { Users, Building2, MapPin, Plus, Edit, Trash2, Search, Shield, CheckCirc
 
 function SuperAdminDashboardContent() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'users' | 'faculties' | 'departments'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'faculties' | 'departments' | 'supervisors'>('users');
   const [user, setUser] = useState({ name: '', role: 'super_admin' });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   // Users state
   const [users, setUsers] = useState<any[]>([]);
-  const [userModal, setUserModal] = useState<{ id?: number; name: string; email: string; password: string; role: string; faculty_id: string; department_id: string; status: string } | null>(null);
+  const [userModal, setUserModal] = useState<{ id?: number; name: string; email: string; password: string; role: string; faculty_id: string; department_id: string; status: string; specialization?: string; max_students?: string; registration_number?: string; program?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Faculties state
   const [faculties, setFaculties] = useState<any[]>([]);
-  const [facultyModal, setFacultyModal] = useState<{ id?: number; name: string; description: string } | null>(null);
+  const [facultyModal, setFacultyModal] = useState<{ id?: number; name: string; abbreviation: string } | null>(null);
 
   // Departments state
   const [departments, setDepartments] = useState<any[]>([]);
   const [departmentModal, setDepartmentModal] = useState<{ id?: number; faculty_id: string; name: string } | null>(null);
 
+  // Supervisors state
+  const [supervisors, setSupervisors] = useState<any[]>([]);
+  const [supervisorModal, setSupervisorModal] = useState<{ id?: number; user_id: string; faculty_id: string; department_id: string; specialization: string; max_students: string; supervisor_type: string } | null>(null);
+
   useEffect(() => {
-    const tabParam = searchParams.get('tab') as 'users' | 'faculties' | 'departments' | null;
-    if (tabParam && ['users', 'faculties', 'departments'].includes(tabParam)) {
+    const tabParam = searchParams.get('tab') as 'users' | 'faculties' | 'departments' | 'supervisors' | null;
+    if (tabParam && ['users', 'faculties', 'departments', 'supervisors'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -41,17 +45,19 @@ function SuperAdminDashboardContent() {
       const payload = decodeToken(token || '');
       if (payload) {
         setUser({ name: payload.name, role: payload.role });
-        const [usersRes, facRes, deptRes] = await Promise.all([
+        const [usersRes, facRes, deptRes, supRes] = await Promise.all([
           fetch('/api/users'),
           fetch('/api/faculties'),
           fetch('/api/departments'),
+          fetch('/api/supervisors'),
         ]);
-        const [usersData, facData, deptData] = await Promise.all([
-          usersRes.json(), facRes.json(), deptRes.json(),
+        const [usersData, facData, deptData, supData] = await Promise.all([
+          usersRes.json(), facRes.json(), deptRes.json(), supRes.json(),
         ]);
         if (usersData.users) setUsers(usersData.users);
         if (facData.faculties) setFaculties(facData.faculties);
         if (deptData.departments) setDepartments(deptData.departments);
+        if (supData.supervisors) setSupervisors(supData.supervisors);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -65,6 +71,19 @@ function SuperAdminDashboardContent() {
   // User CRUD handlers
   const handleSaveUser = async () => {
     if (!userModal) return;
+
+    // Validate required fields based on role
+    if ((userModal.role === 'student' || userModal.role === 'supervisor' || userModal.role === 'co_supervisor')) {
+      if (!userModal.faculty_id) { alert('Faculty is required for this role.'); return; }
+      if (!userModal.department_id) { alert('Department is required for this role.'); return; }
+    }
+    if (userModal.role === 'student' && !userModal.registration_number) {
+      alert('Registration Number is required for students.'); return;
+    }
+    if (userModal.role === 'student' && !userModal.program) {
+      alert('Program is required for students.'); return;
+    }
+
     setActionLoading(userModal.id || -1);
     try {
       const method = userModal.id ? 'PUT' : 'POST';
@@ -80,9 +99,14 @@ function SuperAdminDashboardContent() {
           faculty_id: userModal.faculty_id || null,
           department_id: userModal.department_id || null,
           status: userModal.status,
+          specialization: userModal.specialization || null,
+          max_students: userModal.max_students || null,
+          registration_number: userModal.registration_number || null,
+          program: userModal.program || null,
         }),
       });
       if (res.ok) { setUserModal(null); await fetchData(); }
+      else { const d = await res.json(); alert(d.error || 'Failed to save user.'); }
     } finally { setActionLoading(null); }
   };
 
@@ -105,7 +129,7 @@ function SuperAdminDashboardContent() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: facultyModal.name, description: facultyModal.description }),
+        body: JSON.stringify({ name: facultyModal.name, abbreviation: facultyModal.abbreviation }),
       });
       if (res.ok) { setFacultyModal(null); await fetchData(); }
     } finally { setActionLoading(null); }
@@ -145,6 +169,38 @@ function SuperAdminDashboardContent() {
     } finally { setActionLoading(null); }
   };
 
+  // Supervisor CRUD handlers
+  const handleSaveSupervisor = async () => {
+    if (!supervisorModal) return;
+    setActionLoading(supervisorModal.id || -1);
+    try {
+      const method = supervisorModal.id ? 'PUT' : 'POST';
+      const url = supervisorModal.id ? `/api/supervisors/${supervisorModal.id}` : '/api/supervisors';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: Number(supervisorModal.user_id),
+          facultyId: Number(supervisorModal.faculty_id),
+          departmentId: Number(supervisorModal.department_id),
+          specialization: supervisorModal.specialization,
+          maxStudents: Number(supervisorModal.max_students),
+          supervisorType: supervisorModal.supervisor_type,
+        }),
+      });
+      if (res.ok) { setSupervisorModal(null); await fetchData(); }
+    } finally { setActionLoading(null); }
+  };
+
+  const handleDeleteSupervisor = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this supervisor?')) return;
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/supervisors/${id}`, { method: 'DELETE' });
+      if (res.ok) await fetchData();
+    } finally { setActionLoading(null); }
+  };
+
   if (loading) {
     return (
       <DashboardLayout role="super_admin" userName="">
@@ -173,6 +229,7 @@ function SuperAdminDashboardContent() {
               { id: 'users' as const, label: `Users (${users.length})` },
               { id: 'faculties' as const, label: `Faculties (${faculties.length})` },
               { id: 'departments' as const, label: `Departments (${departments.length})` },
+              { id: 'supervisors' as const, label: `Supervisors (${supervisors.length})` },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`pb-3 text-sm font-medium border-b-2 ${activeTab === tab.id ? 'border-green-700 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -229,6 +286,7 @@ function SuperAdminDashboardContent() {
                             u.role === 'admin' ? 'bg-red-100 text-red-700' :
                             u.role === 'faculty' ? 'bg-blue-100 text-blue-700' :
                             u.role === 'supervisor' ? 'bg-green-100 text-green-700' :
+                            u.role === 'co_supervisor' ? 'bg-teal-100 text-teal-700' :
                             u.role === 'auditor' ? 'bg-orange-100 text-orange-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>{u.role.replace('_', ' ')}</span>
@@ -263,7 +321,7 @@ function SuperAdminDashboardContent() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Faculty Management</CardTitle>
-              <button onClick={() => setFacultyModal({ name: '', description: '' })}
+              <button onClick={() => setFacultyModal({ name: '', abbreviation: '' })}
                 className="text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2" style={{backgroundColor:'#1B5E20'}}>
                 <Plus className="w-4 h-4" /> Add Faculty
               </button>
@@ -274,7 +332,7 @@ function SuperAdminDashboardContent() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Name</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Description</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Abbreviation</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Departments</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
@@ -283,11 +341,11 @@ function SuperAdminDashboardContent() {
                     {faculties.map(f => (
                       <tr key={f.id} className="hover:bg-gray-50">
                         <td className="py-3 px-4 font-medium">{f.name}</td>
-                        <td className="py-3 px-4 text-sm">{f.description || '—'}</td>
+                        <td className="py-3 px-4 text-sm">{f.abbreviation || '—'}</td>
                         <td className="py-3 px-4 text-sm">{departments.filter(d => d.faculty_id === f.id).length}</td>
                         <td className="py-3 px-4">
                           <div className="flex gap-2">
-                            <button onClick={() => setFacultyModal({ id: f.id, name: f.name, description: f.description || '' })}
+                            <button onClick={() => setFacultyModal({ id: f.id, name: f.name, abbreviation: f.abbreviation || '' })}
                               className="text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4" /></button>
                             <button onClick={() => handleDeleteFaculty(f.id)} disabled={actionLoading === f.id}
                               className="text-red-600 hover:text-red-800 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
@@ -343,6 +401,60 @@ function SuperAdminDashboardContent() {
             </CardContent>
           </Card>
         )}
+
+        {/* Supervisors Tab */}
+        {activeTab === 'supervisors' && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Supervisor Management</CardTitle>
+              <button onClick={() => setSupervisorModal({ user_id: '', faculty_id: '', department_id: '', specialization: '', max_students: '5', supervisor_type: 'main' })}
+                className="text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2" style={{backgroundColor:'#1B5E20'}}>
+                <Plus className="w-4 h-4" /> Add Supervisor
+              </button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Name</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Faculty</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Department</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Specialization</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Type</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Capacity</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {supervisors.map(s => (
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 font-medium">{s.name}</td>
+                        <td className="py-3 px-4 text-sm">{s.faculty_name}</td>
+                        <td className="py-3 px-4 text-sm">{s.department_name}</td>
+                        <td className="py-3 px-4 text-sm">{s.specialization}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                            s.supervisor_type === 'main' ? 'bg-green-100 text-green-700' : 'bg-teal-100 text-teal-700'
+                          }`}>{s.supervisor_type}</span>
+                        </td>
+                        <td className="py-3 px-4 text-sm">{s.current_students}/{s.max_students}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-2">
+                            <button onClick={() => setSupervisorModal({ id: s.id, user_id: String(s.user_id), faculty_id: String(s.faculty_id), department_id: String(s.department_id), specialization: s.specialization, max_students: String(s.max_students), supervisor_type: s.supervisor_type })}
+                              className="text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteSupervisor(s.id)} disabled={actionLoading === s.id}
+                              className="text-red-600 hover:text-red-800 disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* User Modal */}
@@ -367,6 +479,7 @@ function SuperAdminDashboardContent() {
                   <option value="admin">Admin</option>
                   <option value="faculty">Faculty</option>
                   <option value="supervisor">Supervisor</option>
+                  <option value="co_supervisor">Co-Supervisor</option>
                   <option value="student">Student</option>
                   <option value="auditor">Auditor</option>
                   <option value="external_reviewer">External Reviewer</option>
@@ -383,6 +496,26 @@ function SuperAdminDashboardContent() {
                   <option value="">None</option>
                   {departments.filter(d => !userModal.faculty_id || d.faculty_id === Number(userModal.faculty_id)).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select></div>
+              {(userModal.role === 'supervisor' || userModal.role === 'co_supervisor') && (
+                <>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Area of Expertise</label>
+                    <input type="text" value={userModal.specialization || ''} onChange={e => setUserModal({...userModal, specialization: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="e.g., Artificial Intelligence" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Max Students</label>
+                    <input type="number" value={userModal.max_students || '5'} onChange={e => setUserModal({...userModal, max_students: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" min="1" /></div>
+                </>
+              )}
+              {userModal.role === 'student' && (
+                <>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Registration Number</label>
+                    <input type="text" value={userModal.registration_number || ''} onChange={e => setUserModal({...userModal, registration_number: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="e.g., REG2024001" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Program</label>
+                    <input type="text" value={userModal.program || ''} onChange={e => setUserModal({...userModal, program: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="e.g., MSc Computer Science" /></div>
+                </>
+              )}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select value={userModal.status} onChange={e => setUserModal({...userModal, status: e.target.value})}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-white">
@@ -410,9 +543,9 @@ function SuperAdminDashboardContent() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input type="text" value={facultyModal.name} onChange={e => setFacultyModal({...facultyModal, name: e.target.value})}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea rows={3} value={facultyModal.description} onChange={e => setFacultyModal({...facultyModal, description: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Abbreviation</label>
+                <input type="text" value={facultyModal.abbreviation} onChange={e => setFacultyModal({...facultyModal, abbreviation: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="e.g., FST, FET" /></div>
             </div>
             <div className="flex gap-3 mt-4">
               <button onClick={handleSaveFaculty} disabled={actionLoading !== null}
@@ -447,6 +580,54 @@ function SuperAdminDashboardContent() {
                 {actionLoading !== null ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setDepartmentModal(null)} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supervisor Modal */}
+      {supervisorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{supervisorModal.id ? 'Edit Supervisor' : 'Add Supervisor'}</h3>
+            <div className="space-y-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">User</label>
+                <select value={supervisorModal.user_id} onChange={e => setSupervisorModal({...supervisorModal, user_id: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-white">
+                  <option value="">Select user...</option>
+                  {users.filter(u => u.role === 'supervisor' || u.role === 'co_supervisor').map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+                </select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Faculty</label>
+                <select value={supervisorModal.faculty_id} onChange={e => setSupervisorModal({...supervisorModal, faculty_id: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-white">
+                  <option value="">Select faculty...</option>
+                  {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select value={supervisorModal.department_id} onChange={e => setSupervisorModal({...supervisorModal, department_id: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-white">
+                  <option value="">Select department...</option>
+                  {departments.filter(d => !supervisorModal.faculty_id || d.faculty_id === Number(supervisorModal.faculty_id)).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
+                <input type="text" value={supervisorModal.specialization} onChange={e => setSupervisorModal({...supervisorModal, specialization: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="e.g., Artificial Intelligence" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Max Students</label>
+                <input type="number" value={supervisorModal.max_students} onChange={e => setSupervisorModal({...supervisorModal, max_students: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700" min="1" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Type</label>
+                <select value={supervisorModal.supervisor_type} onChange={e => setSupervisorModal({...supervisorModal, supervisor_type: e.target.value})}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-white">
+                  <option value="main">Main Supervisor</option>
+                  <option value="co">Co-Supervisor</option>
+                </select></div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={handleSaveSupervisor} disabled={actionLoading !== null}
+                className="flex-1 text-white py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50" style={{backgroundColor:'#1B5E20'}}>
+                {actionLoading !== null ? 'Saving...' : 'Save'}
+              </button>
+              <button onClick={() => setSupervisorModal(null)} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">Cancel</button>
             </div>
           </div>
         </div>

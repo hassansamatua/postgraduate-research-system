@@ -43,7 +43,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, email, password, role, faculty_id, department_id } = await request.json();
+    const { name, email, password, role, faculty_id, department_id, specialization, max_students, registration_number, program } = await request.json();
+
+    if (!name || !email || !password || !role) {
+      return NextResponse.json({ error: 'Name, email, password and role are required' }, { status: 400 });
+    }
+    if ((role === 'student' || role === 'supervisor' || role === 'co_supervisor') && (!faculty_id || !department_id)) {
+      return NextResponse.json({ error: 'Faculty and department are required for this role' }, { status: 400 });
+    }
+    if (role === 'student' && !registration_number) {
+      return NextResponse.json({ error: 'Registration number is required for students' }, { status: 400 });
+    }
+    if (role === 'student' && !program) {
+      return NextResponse.json({ error: 'Program is required for students' }, { status: 400 });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -52,8 +65,32 @@ export async function POST(request: NextRequest) {
       [name, email, hashedPassword, role, faculty_id || null, department_id || null]
     ) as any[];
 
-    return NextResponse.json({ id: result.insertId, message: 'User created successfully' }, { status: 201 });
-  } catch (error) {
+    const userId = result.insertId;
+
+    // Auto-create supervisor record if role is supervisor or co_supervisor
+    if (role === 'supervisor' || role === 'co_supervisor') {
+      const supervisorType = role === 'co_supervisor' ? 'co' : 'main';
+      await pool.query(
+        'INSERT INTO supervisors (user_id, faculty_id, department_id, specialization, max_students, supervisor_type) VALUES (?, ?, ?, ?, ?, ?)',
+        [userId, faculty_id || null, department_id || null, specialization || 'General Research', max_students || 5, supervisorType]
+      );
+    }
+
+    // Auto-create student record if role is student
+    if (role === 'student') {
+      const regNum = registration_number || `REG${Date.now()}`;
+      const prog = program || 'General Program';
+      await pool.query(
+        'INSERT INTO students (user_id, registration_number, program, faculty_id, department_id) VALUES (?, ?, ?, ?, ?)',
+        [userId, regNum, prog, faculty_id || null, department_id || null]
+      );
+    }
+
+    return NextResponse.json({ id: userId, message: 'User created successfully' }, { status: 201 });
+  } catch (error: any) {
+    if (error?.code === 'ER_DUP_ENTRY') {
+      return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 400 });
+    }
     console.error('Error creating user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
