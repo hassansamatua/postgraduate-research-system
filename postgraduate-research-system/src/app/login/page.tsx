@@ -103,21 +103,6 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
-
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600 text-center mb-4">
-            Demo Credentials:
-          </p>
-          <div className="space-y-2 text-xs text-gray-500">
-            <p>Super Admin: superadmin@research.test / password123</p>
-            <p>Admin: admin@research.test / password123</p>
-            <p>Student: student@research.test / password123</p>
-            <p>Faculty: faculty@research.test / password123</p>
-            <p>Supervisor: supervisor@research.test / password123</p>
-            <p>Auditor: auditor@research.test / password123</p>
-            <p>External Reviewer: reviewer@research.test / password123</p>
-          </div>
-        </div>
       </div>
     </div>
   );

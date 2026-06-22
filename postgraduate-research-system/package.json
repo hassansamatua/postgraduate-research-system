@@ -7,7 +7,8 @@
     "dev:webpack": "next dev --no-turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "create-super-admin": "node scripts/create-super-admin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
